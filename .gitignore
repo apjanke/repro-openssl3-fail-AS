@@ -1,0 +1,14 @@
+# .gitignore for repro-openssl3-fail-AS
+
+repro-logs
+*.log
+
+# Generic stuff
+
+.DS_Store
+*.swp
+.AppleDouble
+github-token
+*-token
+tmp
+

@@ -1,0 +1,229 @@
+# Octave.app openssl@3 3.2.0 `make test` build failure 2024-01
+
+* Ticket: https://github.com/octave-app/octave-app/issues/250
+
+Failing on eilonwy. Maybe irregularly?
+
+## TODO
+
+
+## Journal
+
+Original failure: failed tests: 15-test_ec, 30-test_evp, 30-test_evp_extra
+
+Rebuilding. angharad: 446 s (6:00), crumpet: (12:51), lt-mac-11 (6:00)
+D'oh! crumpet is actually an Intel Mac.
+
+Rebuild command: 
+  * time brew install --build-from-source --verbose openssl@3; echo "exit status: $?"
+  * no-parallel is with: HOMEBREW_MAKE_JOBS=1
+
+Rebuild attempts under standard Homebrew:
+
+* angharad
+  * regular
+    * try 1: ok ???
+    * try 2: failed: 15-test_ecdsa, 30-test_evp_extra
+    * try 3: failed: 15-test_ec, 15-test_ecdsa
+    * try 4: failed: 15-test_dc
+    * try 5, 6, 7, 8: ok
+    * try 9, 10, 11, 12, 13: ok. then rebooted
+    * try 14, 15, 16: ok
+  * no-parallel
+* crumpet
+  * regular
+    * try 1, 2, 3, 4, 5, 6, 7, 8, 9, 10: ok
+* lt-mac-11
+  * regular
+    * try 1: fail: 80-test_cmp_http (timeout to localhost over IPv6?)
+    * try 2, 3, 4, 5, 6: ok
+
+I think around try 5 on eilonwy I exited some programs like Mail and Parallels Desktop. May have affected memory usage? Before try 9, I fired them up again (but not a VM inside Parallels). Fired up VM before try 10.
+
+Then after the 16th run and a chain of successes, ran bundle_octave_app again, and got a failure.
+
+
+Failure details:
+
+angharad regular try 2:
+
+```
+15-test_dsaparam.t ...................... ok
+15-test_ec.t ............................ ok
+
+        # INFO:  @ test/ecdsatest.c:222
+        # testing ECDSA for curve SM2 as SM2 key type
+        # ERROR: (int) 'EVP_DigestVerify(mctx, sig, sig_len, tbs, sizeof(tbs)) == 1' failed @ test/ecdsatest.c:282
+        # [0] compared to [1]
+        # 409C04DB01000000:error:1A800068:SM2 routines:ossl_sm2_internal_verify:reason(104):crypto/sm2/sm2_sign.c:497:
+        # OPENSSL_TEST_RAND_SEED=1706465255
+        not ok 164 - iteration 82
+# ------------------------------------------------------------------------------
+    # OPENSSL_TEST_RAND_SEED=1706465255
+    not ok 3 - test_builtin_as_sm2
+# ------------------------------------------------------------------------------
+../../util/wrap.pl ../../test/ecdsatest => 1
+not ok 1 - running ecdsatest
+# ------------------------------------------------------------------------------
+#   Failed test 'running ecdsatest'
+#   at /private/tmp/opensslA3-20240128-82280-a3rcxq/openssl-3.2.0/util/perl/OpenSSL/Test/Simple.pm line 77.
+# Looks like you failed 1 test of 1.15-test_ecdsa.t .........................
+Dubious, test returned 1 (wstat 256, 0x100)
+Failed 1/1 subtests
+15-test_ecparam.t ....................... ok
+[...]
+30-test_evp.t ........................... ok
+
+    # ERROR: (int) 'EVP_PKEY_decrypt(cctx, plaintext, &ptext_len, ciphertext, ctext_len) > 0' failed @ test/evp_extra_test.c:2288
+    # [0] compared to [0]
+    # 409C04DB01000000:error:0800006B:elliptic curve routines:EC_POINT_set_affine_coordinates:point is not on curve:crypto/ec/ec_lib.c:875:
+    # 409C04DB01000000:error:1A880010:SM2 routines:ossl_sm2_decrypt:EC lib:crypto/sm2/sm2_crypt.c:353:
+    # OPENSSL_TEST_RAND_SEED=1706465371
+    not ok 15 - test_EVP_SM2
+# ------------------------------------------------------------------------------
+../../util/wrap.pl ../../test/evp_extra_test => 1
+not ok 1 - running evp_extra_test
+# ------------------------------------------------------------------------------
+# Looks like you failed 1 test of 3.30-test_evp_extra.t .....................
+Dubious, test returned 1 (wstat 256, 0x100)
+Failed 1/3 subtests
+30-test_evp_fetch_prov.t ................ ok
+
+Test Summary Report
+-------------------
+15-test_ecdsa.t                       (Wstat: 256 Tests: 1 Failed: 1)
+  Failed test:  1
+  Non-zero exit status: 1
+30-test_evp_extra.t                   (Wstat: 256 Tests: 3 Failed: 1)
+  Failed test:  1
+  Non-zero exit status: 1
+Files=294, Tests=3562, 303 wallclock secs ( 2.91 usr  0.46 sys + 181.27 cusr 50.86 csys = 235.50 CPU)
+Result: FAIL
+make[1]: *** [run_tests] Error 1
+make: *** [tests] Error 2
+```
+
+
+angharad regular try 3:
+
+```
+15-test_dsaparam.t ...................... ok
+
+        # ERROR: (bool) 'EC_POINT_is_at_infinity(group, P) == true' failed @ test/ectest.c:138
+        # false
+        # INFO:  @ test/ectest.c:147
+        # allowing precomputation
+        # OPENSSL_TEST_RAND_SEED=1706465845
+        not ok 259 - iteration 82
+# ------------------------------------------------------------------------------
+    # OPENSSL_TEST_RAND_SEED=1706465845
+    not ok 11 - internal_curve_test_method
+# ------------------------------------------------------------------------------
+        # Curve SM2
+        # ERROR: (memory) 'b1 == b2' failed @ test/ectest.c:2783
+        # --- b1
+        # +++ b2
+        # 0000:-04044f72905069db acdb541440358c43 299c00d84664c92b 0a6c005b3bba8e09
+        # 0000:+04942b86bb357dd4 ab86c920f453b837 1835920754bc0c2f e1ad9dc7e30674dc
+        #         ^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^
+        # 0020:-6e19d1c7f5c9055e 8fc0fd693dae0f28 0f0aa2757720ecf8 546a3131f531cdb4
+        # 0020:+70618b877c976085 788edf518e0e396a 40d0be0ba2290e6f 66b0ea9127037e58
+        #       ^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^
+        # 0040:-6d
+        # 0040:+a2
+        #       ^^
+        # 
+        # OPENSSL_TEST_RAND_SEED=1706465845
+        not ok 751 - iteration 82
+# ------------------------------------------------------------------------------
+    # OPENSSL_TEST_RAND_SEED=1706465845
+    not ok 18 - custom_generator_test
+# ------------------------------------------------------------------------------
+../../util/wrap.pl ../../test/ectest => 1
+not ok 2 - running ectest
+# ------------------------------------------------------------------------------
+# Looks like you failed 1 test of 15.15-test_ec.t ............................ 
+Dubious, test returned 1 (wstat 256, 0x100)
+Failed 1/15 subtests 
+	(less 1 skipped subtest: 13 okay)
+
+        # INFO:  @ test/ecdsatest.c:222
+        # testing ECDSA for curve SM2 as SM2 key type
+        # ERROR: (bool) 'EVP_DigestSignInit(mctx, NULL, NULL, NULL, pkey) == true' failed @ test/ecdsatest.c:249
+        # false
+        # 409C04DB01000000:error:0800006B:elliptic curve routines:EC_POINT_set_affine_coordinates:point is not on curve:crypto/ec/ec_lib.c:875:
+        # 409C04DB01000000:error:0800006B:elliptic curve routines:EC_POINT_set_affine_coordinates:point is not on curve:crypto/ec/ec_lib.c:875:
+        # 409C04DB01000000:error:03000086:digital envelope routines:do_sigver_init:initialization error:crypto/evp/m_sigver.c:189:
+        # OPENSSL_TEST_RAND_SEED=1706465849
+        not ok 164 - iteration 82
+# ------------------------------------------------------------------------------
+    # OPENSSL_TEST_RAND_SEED=1706465849
+    not ok 3 - test_builtin_as_sm2
+# ------------------------------------------------------------------------------
+../../util/wrap.pl ../../test/ecdsatest => 1
+not ok 1 - running ecdsatest
+# ------------------------------------------------------------------------------
+#   Failed test 'running ecdsatest'
+#   at /private/tmp/opensslA3-20240128-66782-u46zb1/openssl-3.2.0/util/perl/OpenSSL/Test/Simple.pm line 77.
+# Looks like you failed 1 test of 1.15-test_ecdsa.t ......................... 
+Dubious, test returned 1 (wstat 256, 0x100)
+Failed 1/1 subtests 
+15-test_ecparam.t ....................... ok
+[...]
+
+Test Summary Report
+-------------------
+15-test_ec.t                          (Wstat: 256 Tests: 15 Failed: 1)
+  Failed test:  2
+  Non-zero exit status: 1
+15-test_ecdsa.t                       (Wstat: 256 Tests: 1 Failed: 1)
+  Failed test:  1
+  Non-zero exit status: 1
+Files=294, Tests=3562, 299 wallclock secs ( 2.80 usr  0.51 sys + 176.93 cusr 49.65 csys = 229.89 CPU)
+Result: FAIL
+```
+
+
+angharad regular try 4:
+
+```
+15-test_dsaparam.t ...................... ok
+
+        # ERROR: (int) 'EC_KEY_check_key(key) > 0' failed @ test/ectest.c:2363
+        # [0] compared to [0]
+        # 409C04DB01000000:error:0800006B:elliptic curve routines:ossl_ec_key_public_check_quick:point is not on curve:crypto/ec/ec_key.c:551:
+        # OPENSSL_TEST_RAND_SEED=1706466414
+        not ok 505 - iteration 82
+# ------------------------------------------------------------------------------
+    # OPENSSL_TEST_RAND_SEED=1706466414
+    not ok 15 - check_ec_key_field_public_range_test
+# ------------------------------------------------------------------------------
+../../util/wrap.pl ../../test/ectest => 1
+not ok 2 - running ectest
+# ------------------------------------------------------------------------------
+# Looks like you failed 1 test of 15.15-test_ec.t ............................ 
+Dubious, test returned 1 (wstat 256, 0x100)
+Failed 1/15 subtests 
+	(less 1 skipped subtest: 13 okay)
+15-test_ecdsa.t ......................... ok
+[...]
+
+-------------------
+15-test_ec.t                          (Wstat: 256 Tests: 15 Failed: 1)
+  Failed test:  2
+  Non-zero exit status: 1
+Files=294, Tests=3562, 298 wallclock secs ( 2.85 usr  0.47 sys + 178.49 cusr 49.80 csys = 231.61 CPU)
+Result: FAIL
+```
+
+
+## Memory tests for angharad
+
+Apple Diagnostics: press and hold power, gets you startup options, then press and hold Cmd-D.
+References:
+* Diagnostics for Self Service Repair: https://support.apple.com/en-us/102488
+
+Running Diagnostics. "Could not establish a session. You can still run this offline. If doing this for a self-service repair, consult the repair manual."
+
+Ran diagnostics several times. Didn't report any issues. Couldn't find an in-depth memory test.
+

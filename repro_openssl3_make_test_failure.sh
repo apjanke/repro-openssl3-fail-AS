@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-script_timestamp=$(date +%Y-%M-%d_%H-%M-%S)
+script_timestamp=$(date +%Y-%m-%d_%H-%M-%S)
 script_timestamp_friendly=$(date)
 host=$(hostname -s)
 # Each script run gets a fresh output dir
@@ -46,11 +46,10 @@ outdir="repro-logs/${host}_${script_timestamp}_${formula}"
 log_file_prefix="${outdir}/repro-openssl_${script_timestamp}"
 host_info_file="${log_file_prefix}_host-info.txt"
 script_log_file="${log_file_prefix}_rebuild.log"
-failsdir="${outdir}/failures"
+build_logs_dir="${outdir}/build-logs"
 n_fails=0
+n_successes=0
 
-mkdir -p "$outdir"
-mkdir -p "$failsdir"
 
 function record_host_info () {
   echo "Host and env info:
@@ -111,23 +110,24 @@ function run_rebuilds () {
     echo ""
     echo "Running rebuild attempt ${i} of ${n_rebuilds} ($(date))..."
     echo ""
-    rebuild_timestamp=$(date +%Y-%M-%d_%H-%M-%S)
+    rebuild_timestamp=$(date +%Y-%m-%d_%H-%M-%S)
     if is_dry_run; then
       echo "DRY RUN: would do: brew reinstall --build-from-source ${formula}"
     else
       if brew reinstall --build-from-source "$formula"; then
         build_status="$?"
         echo "brew reinstall OK for ${formula}"
+        n_successes=$(( n_successes + 1 ))
+        # We only need one success record, I think
+        if [[ $n_successes == 1 ]]; then
+          capture_build_logs $(printf 'run_%02d_ok' "$i")
+        fi
       else
         build_status="$?"
         echo "brew reinstall FAILED for ${formula}"
         n_fails=$(( n_fails + 1 ))
         echo "Got a build failure on attempt ${i} at ${rebuild_timestamp}."
-        savedir="${failsdir}/fail_${i}_${rebuild_timestamp}"
-        mkdir -p "$savedir"
-        mkdir -p "${savedir}/brew-logs"
-        cp -R "${HOME}/Library/Logs/Homebrew/${formula}" "${savedir}/brew-logs"
-        echo "Captured failure info and logs to ${savedir}"
+        capture_build_logs $(printf 'run_%02d_fail' "$i")
       fi
     fi
   done
@@ -142,6 +142,15 @@ function run_rebuilds () {
   echo ""
 }
 
+function capture_build_logs () {
+  local label="$1"
+  local savedir="${build_logs_dir}/${label}"
+  mkdir -p "$savedir"
+  mkdir -p "${savedir}/brew-logs"
+  cp -R "${HOME}/Library/Logs/Homebrew/${formula}" "${savedir}/brew-logs"
+  echo "Captured build logs to ${savedir}"  
+}
+
 function run_rebuilds_logged () {
   echo "Logging rebuilds to ${script_log_file}"
   run_rebuilds 2>&1 | tee "$script_log_file"
@@ -154,6 +163,9 @@ function run_rebuilds_logged () {
 export HOMEBREW_NO_AUTO_UPDATE=1
 # To reduce brew output clutter:
 export HOMEBREW_NO_ENV_HINTS=1
+
+mkdir -p "$outdir"
+mkdir -p "$build_logs_dir"
 
 record_host_info
 run_rebuilds_logged
